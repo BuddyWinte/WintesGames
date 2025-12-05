@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" class="neon">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Winte's Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+  <style>
+    /* Neon default theme + CSS variables for quick tuning */
+    :root{
+      --accent: #4af6ff;
+      --bg: #0b0d0f;
+      --surface: rgba(255,255,255,0.04);
+      --muted: rgba(255,255,255,0.55);
+    }
+    .neon{ background: radial-gradient(1000px 600px at 10% 10%, rgba(74,246,255,0.06), transparent), var(--bg); color: #eafcff; }
+
+    /* Glass card */
+    .glass{ background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(10px); }
+
+    /* header size */
+    header{ height: 76px; min-height:76px; }
+
+    /* subtle focus */
+    .focus-ring:focus{ outline: none; box-shadow: 0 0 0 4px rgba(74,246,255,0.06); }
+
+    /* sidebar active */
+    .sidebar-item.active{ background: linear-gradient(90deg, rgba(74,246,255,0.08), rgba(74,246,255,0.02)); color: white; border-radius: 12px; }
+
+    /* nice card hover */
+    .game-card{ transform-origin: center; transition: transform .18s ease, box-shadow .18s ease; }
+    .game-card:hover{ transform: translateY(-6px) scale(1.02); box-shadow: 0 12px 30px rgba(2,6,23,0.6); }
+
+    /* thumbnail stub */
+    .thumb{ width:100%; height:120px; border-radius:10px; background: linear-gradient(135deg, rgba(74,246,255,0.12), rgba(255,255,255,0.02)); display:flex; align-items:center; justify-content:center; color:var(--accent); font-weight:700; }
+
+    /* responsive tweaks */
+    @media (max-width: 900px){ aside{ width:64px; } .game-title-text{ display:none; } header h2{ font-size:1rem; } }
+
+  </style>
+</head>
+
+<body class="neon min-h-screen flex text-white">
+
+  <!-- Templates -->
+  <template id="game-card-template">
+    <div class="game-card glass rounded-2xl p-4 border border-white/6 cursor-pointer flex flex-col gap-3">
+      <div class="thumb">GAME</div>
+      <div class="flex items-center justify-between">
+        <div class="flex-1 pr-2">
+          <div class="game-title font-semibold text-lg leading-snug"></div>
+          <div class="text-sm mt-1 opacity-80 category-text"></div>
+        </div>
+        <div class="text-xl opacity-90 material-icons">play_arrow</div>
+      </div>
+    </div>
+  </template>
+  <aside class="w-80 glass p-5 border-r border-white/6 flex flex-col gap-4 overflow-auto">
+    <div class="flex items-center gap-3">
+      <div class="rounded-md p-2 bg-[rgba(255,255,255,0.02)]">
+        <span class="material-icons text-[var(--accent)]">sports_esports</span>
+      </div>
+      <div>
+        <div class="text-2xl font-extrabold tracking-tight text-[var(--accent)]">Winte's Portal</div>
+        <div class="text-xs opacity-70">Gaming Hub</div>
+      </div>
+    </div>
+    <div>
+      <label class="block text-xs opacity-70 mb-2">Search games</label>
+      <input id="sidebarSearch" class="w-full p-2 rounded-lg glass focus-ring text-white placeholder:opacity-60" placeholder="Type to filter..." oninput="filterSidebar()" />
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="homeBtn" onclick="goHome()" class="px-3 py-2 rounded-lg glass flex items-center gap-2 hover:scale-[1.02] transition">
+        <span class="material-icons">home</span>
+        <span class="game-title-text">Home</span>
+      </button>
+      <button id="settingsBtn" onclick="openSettings()" class="px-3 py-2 rounded-lg glass flex items-center gap-2 hover:scale-[1.02] transition">
+        <span class="material-icons">settings</span>
+        <span class="game-title-text">Settings</span>
+      </button>
+    </div>
+
+    <div class="mt-2 text-sm opacity-80">Games</div>
+    <div id="sidebarGames" class="flex flex-col gap-2"></div>
+
+    <div class="mt-auto">
+      <div class="text-xs opacity-60">V0.0.9 - Indev</div>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <div class="flex-1 flex flex-col">
+    <header class="glass flex items-center justify-between px-6 border-b border-white/6">
+      <div class="flex items-center gap-4">
+        <button id="backBtn" class="hidden p-2 rounded-lg hover:bg-white/4 transition" onclick="goHome()"><span class="material-icons">arrow_back</span></button>
+        <h2 id="headerTitle" class="text-2xl font-semibold">Home</h2>
+        <span id="subHeader" class="text-sm opacity-70"></span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="fullscreenBtn" class="hidden p-2 rounded-lg hover:bg-white/4 transition" onclick="toggleFullscreen()">
+          <span class="material-icons">fullscreen</span>
+        </button>
+        <button id="openExternal" class="p-2 rounded-lg hover:bg-white/4 transition hidden" title="Open game in new tab">
+          <span class="material-icons">open_in_new</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="mainView" class="flex-1 overflow-auto p-6"></main>
+  </div>
+
+  <script>
+    const games = [
+        // { title: "name", url: "url", category: "Uncategorized"},
+      { title: "3D Bowling Game", url: "https://www.rapidwebapp.com/game/3dbowling/index.html", category: "Uncategorized" },
+      { title: "T-Rex 3D Dinosaur Game", url: "https://www.rapidwebapp.com/game/dinosaurgame/index.html", category: "Uncategorized"},
+      { title: "2048 Cupcakes", url: "hhttps://www.rapidwebapp.com/game/2048cupcakes/index.html", category: "Uncategorized"},
+      { title: "2048", url: "https://www.rapidwebapp.com/game/2048game/index.html", category: "Uncategorized"},
+      { title: "2048 Ice Cream", url: "https://www.rapidwebapp.com/game/2048icecream/index.html", category: "Uncategorized"},
+      { title: "AdVenture Capitalist", url: "https://www.rapidwebapp.com/game/adcapitalist/index.html", category: "Uncategorized"},
+      { title: "Adventure Drivers", url: "https://www.rapidwebapp.com/game/adventuredrivers/index.html", category: "Uncategorized"},
+      { title: "Angry Sharks", url: "https://www.rapidwebapp.com/game/angrysharks/index.html", category: "Uncategorized"},
+    ];
+    let activeGame = null;
+    function initSidebar(){
+      renderSidebar(games);
+    }
+    function renderSidebar(list){
+      const container = document.getElementById('sidebarGames');
+      container.innerHTML = '';
+      list.forEach(g => {
+        const btn = document.createElement('button');
+        btn.className = 'text-left p-2 rounded-lg hover:bg-white/4 transition sidebar-item flex items-center justify-between';
+        btn.innerHTML = `<span class=\"truncate\">${escapeHtml(g.title)}</span><span class=\"text-xs opacity-70 ml-3\">${escapeHtml(g.category)}</span>`;
+        btn.onclick = () => openGame(g.title);
+        btn.dataset.title = g.title;
+        container.appendChild(btn);
+      });
+      highlightActiveSidebar();
+    }
+    function filterSidebar(){
+      const q = document.getElementById('sidebarSearch').value.toLowerCase();
+      const filtered = games.filter(g => g.title.toLowerCase().includes(q) || g.category.toLowerCase().includes(q));
+      renderSidebar(filtered);
+    }
+    function highlightActiveSidebar(){
+      const items = document.querySelectorAll('#sidebarGames .sidebar-item');
+      items.forEach(it => {
+        if (activeGame && it.dataset.title === activeGame.title) it.classList.add('active');
+        else it.classList.remove('active');
+      });
+    }
+    function goHome(){
+      history.pushState({}, '', '?');
+      activeGame = null;
+      highlightActiveSidebar();
+      renderHome();
+    }
+    function renderHome(){
+      const view = document.getElementById('mainView');
+      document.getElementById('backBtn').classList.add('hidden');
+      document.getElementById('fullscreenBtn').classList.add('hidden');
+      document.getElementById('openExternal').classList.add('hidden');
+      document.title = "Winte's Portal";
+      document.getElementById('headerTitle').textContent = 'Home';
+      document.getElementById('subHeader').textContent = 'Browse all games';
+      view.innerHTML = `<div class=\"grid gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2\"></div>`;
+      const grid = view.firstChild;
+      games.forEach(game => {
+        const tpl = document.getElementById('game-card-template');
+        const node = tpl.content.cloneNode(true);
+        node.querySelector('.game-title').textContent = game.title;
+        node.querySelector('.category-text').textContent = game.category;
+        node.querySelector('.thumb').textContent = game.title.split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase();
+        node.querySelector('.game-card').onclick = () => openGame(game.title);
+        grid.appendChild(node);
+      });
+    }
+    function openSettings(){
+      history.pushState({}, '', '?settings=1');
+      activeGame = null;
+      highlightActiveSidebar();
+      renderSettings();
+    }
+    function renderSettings(){
+      const view = document.getElementById('mainView');
+      document.getElementById('backBtn').classList.remove('hidden');
+      document.getElementById('fullscreenBtn').classList.add('hidden');
+      document.getElementById('openExternal').classList.add('hidden');
+      document.title = "Settings - Winte's Portal";
+      document.getElementById('headerTitle').textContent = 'Settings';
+      document.getElementById('subHeader').textContent = 'Preferences & placeholders';
+      view.innerHTML = `
+        <div class=\"max-w-3xl\"> 
+          <div class=\"glass rounded-2xl p-6 mb-6\"> 
+            <h3 class=\"text-xl font-bold mb-2\">Account</h3>
+            <p class=\"opacity-80 mb-4\">Profile and account preferences will go here.</p>
+            <div class=\"flex gap-3\">
+              <div class=\"glass p-3 rounded-lg\">Placeholder toggle</div>
+              <div class=\"glass p-3 rounded-lg\">Another setting</div>
+            </div>
+          </div>
+
+          <div class=\"glass rounded-2xl p-6\"> 
+            <h3 class=\"text-xl font-bold mb-2\">Appearance</h3>
+            <p class=\"opacity-80\">Theme options & layout settings (placeholder).</p>
+          </div>
+        </div>`;
+    }
+    function openGame(title){
+      const game = games.find(g => g.title === title);
+      if(!game) return;
+      activeGame = game;
+      highlightActiveSidebar();
+      history.pushState({}, '', `?game=${encodeURIComponent(title)}`);
+      renderGame(game);
+    }
+    function renderGame(game){
+      const view = document.getElementById('mainView');
+      document.getElementById('backBtn').classList.remove('hidden');
+      document.getElementById('fullscreenBtn').classList.remove('hidden');
+      document.getElementById('openExternal').classList.remove('hidden');
+      document.title = `${game.title} - Winte's Portal`;
+      document.getElementById('headerTitle').textContent = game.title;
+      document.getElementById('subHeader').textContent = game.category;
+      view.innerHTML = `<div class=\"h-full flex flex-col gap-4\">
+        <div class=\"glass p-4 rounded-xl border border-white/6\">
+          <div class=\"flex items-center justify-between gap-4\">
+            <div>
+              <div class=\"text-lg font-semibold\">${escapeHtml(game.title)}</div>
+              <div class=\"text-sm opacity-70\">${escapeHtml(game.category)}</div>
+            </div>
+            <div class=\"flex items-center gap-2\">
+              <button class=\"glass px-3 py-2 rounded-lg\" onclick=\"toggleFullscreen()\">Fullscreen</button>
+              <a id=\"openLink\" class=\"glass px-3 py-2 rounded-lg\" href=\"${escapeHtml(game.url)}\" target=\"_blank\">Open in new tab</a>
+            </div>
+          </div>
+        </div>
+        <div class=\"flex-1\">
+          <iframe id=\"gameFrame\" src=\"${escapeHtml(game.url)}\" class=\"w-full h-full rounded-xl border border-white/6\"></iframe>
+        </div>
+      </div>`;
+      document.getElementById('openExternal').onclick = () => window.open(game.url, '_blank');
+    }
+    function toggleFullscreen(){
+      const el = document.getElementById('gameFrame');
+      if(!el) return;
+      if(el.requestFullscreen) el.requestFullscreen();
+    }
+    function escapeHtml(unsafe){ return (''+unsafe).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function checkURL(){
+      const params = new URLSearchParams(location.search);
+      if(params.get('settings')) return renderSettings();
+      const g = params.get('game');
+      if(g){ const game = games.find(x=>x.title===g); if(game) return renderGame(game); }
+      renderHome();
+    }
+    window.addEventListener('popstate', checkURL);
+    initSidebar();
+    checkURL();
+  </script>
+</body>
+</html>
